@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SAT Vocab App</title>
+<style>
+body { font-family: Arial; background:#f0f4f8; padding:20px; color:#333;}
+nav button{margin:0 10px 10px 0;padding:8px 12px;border:none;border-radius:5px;background:#4a90e2;color:white;cursor:pointer;}
+nav button:hover{background:#357ABD;}
+section{display:none;background:#fff;padding:20px;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,0.1);margin-bottom:20px;}
+section.active{display:block;}
+input, textarea{display:block;margin:5px 0 15px 0;width:300px;padding:6px;border-radius:5px;border:1px solid #ccc;}
+.question{padding:10px;margin-bottom:10px;background:#f9fafc;border-radius:8px; display:flex; justify-content:space-between; align-items:center;}
+button.delete-btn{background:#e74c3c;color:white;padding:4px 8px;border:none;border-radius:4px;cursor:pointer;}
+button.delete-btn:hover{background:#c0392b;}
+#quizResult,#satResult,#addWordMessage,#addSATQuestionMessage,#vocabMessage,#satMessage{font-weight:bold;margin-top:10px;color:#2a7a2a;}
+</style>
+</head>
+<body>
+
+<h1>SAT Vocabulary App</h1>
+
+<nav>
+<button onclick="showSection('home')">Home</button>
+<button onclick="showSection('quiz')">Quiz</button>
+<button onclick="showSection('satPractice')">SAT Practice</button>
+<button onclick="showSection('manageVocab')">Manage Vocab</button>
+<button onclick="showSection('manageSAT')">Manage SAT Questions</button>
+<button onclick="showSection('addWord')">Add Word</button>
+<button onclick="showSection('addSATQuestion')">Add SAT Question</button>
+</nav>
+
+<section id="home" class="active">
+<h2>Welcome</h2>
+<p>Add your own vocabulary and SAT questions to get started.</p>
+</section>
+
+<section id="quiz">
+<h2>Vocab Quiz</h2>
+<div id="quizContainer"></div>
+<button onclick="loadQuiz()">Load Quiz</button>
+<button onclick="submitQuiz()">Submit Quiz</button>
+<div id="quizResult"></div>
+</section>
+
+<section id="satPractice">
+<h2>SAT Practice</h2>
+<div id="practiceContainer"></div>
+<button onclick="loadSATPractice()">Load SAT Practice</button>
+<button onclick="submitSATQuiz()">Submit SAT Quiz</button>
+<div id="satResult"></div>
+</section>
+
+<section id="addWord">
+<h2>Add Word</h2>
+<input type="text" id="newWord" placeholder="Word">
+<textarea id="newDefinition" placeholder="Definition"></textarea>
+<button onclick="addWord()">Add Word</button>
+<div id="addWordMessage"></div>
+</section>
+
+<section id="addSATQuestion">
+<h2>Add SAT Question</h2>
+<input type="text" id="satQuestion" placeholder="Question">
+<input type="text" id="satChoice1" placeholder="Choice 1">
+<input type="text" id="satChoice2" placeholder="Choice 2">
+<input type="text" id="satChoice3" placeholder="Choice 3">
+<input type="text" id="satChoice4" placeholder="Choice 4">
+<input type="number" id="satCorrectChoice" placeholder="Correct Choice (1-4)">
+<button onclick="addSATQuestion()">Add SAT Question</button>
+<div id="addSATQuestionMessage"></div>
+</section>
+
+<section id="manageVocab">
+<h2>Manage Vocab</h2>
+<div id="vocabContainer"></div>
+<button onclick="fetchUserVocab()">Load Vocab</button>
+<div id="vocabMessage"></div>
+</section>
+
+<section id="manageSAT">
+<h2>Manage SAT Questions</h2>
+<div id="satContainer"></div>
+<button onclick="fetchUserSAT()">Load SAT Questions</button>
+<div id="satMessage"></div>
+</section>
+
+<script>
+let quizData=[], satData=[], userVocab=[], userSAT=[];
+
+/* NAV */
+function showSection(id){
+  document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+/* QUIZ */
+function loadQuiz(){
+  fetch('/quiz').then(r=>r.json()).then(data=>{
+    quizData=data;
+    const c=document.getElementById('quizContainer'); c.innerHTML='';
+    if(data.length===0){ c.innerHTML='<i>No words yet.</i>'; return; }
+    data.forEach((q,i)=>{
+      const div=document.createElement('div'); div.className='question';
+      div.innerHTML=`<b>${i+1}. ${q.word}</b><br>` +
+        q.choices.map(choice=>`<label><input type="radio" name="q${i}" value="${choice}">${choice}</label>`).join('<br>');
+      c.appendChild(div);
+    });
+    document.getElementById('quizResult').innerText='';
+  });
+}
+
+function submitQuiz(){
+  let score=0;
+  quizData.forEach((q,i)=>{
+    const sel=document.querySelector(`input[name="q${i}"]:checked`);
+    const div=document.querySelectorAll('#quizContainer .question')[i];
+    const prevSpan=div.querySelector('.correctAnswer'); if(prevSpan) prevSpan.remove();
+    if(sel && sel.value===q.correctAnswer){score++; div.classList.add('correct');}
+    else{
+      div.classList.add('incorrect');
+      const correctSpan=document.createElement('div'); correctSpan.className='correctAnswer';
+      correctSpan.innerText=`Correct answer: ${q.correctAnswer}`; div.appendChild(correctSpan);
+    }
+  });
+  document.getElementById('quizResult').innerText=`You scored ${score} out of ${quizData.length}`;
+}
+
+/* SAT */
+function loadSATPractice(){
+  fetch('/sat-practice').then(r=>r.json()).then(data=>{
+    satData=data; const c=document.getElementById('practiceContainer'); c.innerHTML='';
+    if(data.length===0){ c.innerHTML='<i>No SAT questions yet.</i>'; return; }
+    data.forEach((q,i)=>{
+      const div=document.createElement('div'); div.className='question';
+      div.innerHTML=`<b>${i+1}. ${q.question}</b><br>` +
+        q.choices.map(choice=>`<label><input type="radio" name="sat${i}" value="${choice}">${choice}</label>`).join('<br>');
+      c.appendChild(div);
+    });
+    document.getElementById('satResult').innerText='';
+  });
+}
+
+function submitSATQuiz(){
+  let score=0;
+  satData.forEach((q,i)=>{
+    const sel=document.querySelector(`input[name="sat${i}"]:checked`);
+    const div=document.querySelectorAll('#practiceContainer .question')[i];
+    const prevSpan=div.querySelector('.correctAnswer'); if(prevSpan) prevSpan.remove();
+    if(sel && sel.value===q.correctAnswer){score++; div.classList.add('correct');}
+    else{
+      div.classList.add('incorrect');
+      const correctSpan=document.createElement('div'); correctSpan.className='correctAnswer';
+      correctSpan.innerText=`Correct answer: ${q.correctAnswer}`; div.appendChild(correctSpan);
+    }
+  });
+  document.getElementById('satResult').innerText=`You scored ${score} out of ${satData.length}`;
+}
+
+/* ADD WORD */
+function addWord(){
+  const word=document.getElementById('newWord').value;
+  const definition=document.getElementById('newDefinition').value;
+  fetch('/add-vocab',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word,definition})})
+  .then(r=>r.json()).then(d=>{
+    document.getElementById('addWordMessage').innerText=d.message||d.error;
+    if(d.message){ 
+      document.getElementById('newWord').value='';
+      document.getElementById('newDefinition').value='';
+      fetchUserVocab();
+    }
+  });
+}
+
+/* MANAGE VOCAB */
+function fetchUserVocab(){
+  fetch('/user-vocab').then(r=>r.json()).then(data=>{
+    userVocab = data;
+    loadManageVocab();
+  });
+}
+
+function loadManageVocab(){
+  const c=document.getElementById('vocabContainer'); c.innerHTML='';
+  if(userVocab.length===0){ c.innerHTML='<i>No user-added words yet.</i>'; return; }
+  userVocab.forEach(v=>{
+    const div=document.createElement('div'); div.className='question';
+    div.innerHTML = `<span>${v.word}</span><button class="delete-btn" onclick="deleteVocab('${v.word}')">Delete</button>`;
+    c.appendChild(div);
+  });
+}
+
+function deleteVocab(word){
+  fetch(`/delete-vocab/${encodeURIComponent(word)}`, { method:'DELETE' })
+    .then(r=>r.json())
+    .then(d=>{
+      userVocab = userVocab.filter(v=>v.word!==word);
+      loadManageVocab();
+      const msg=document.getElementById('vocabMessage'); msg.innerText=d.message || "Deleted!";
+      setTimeout(()=>{ msg.innerText=''; },3000);
+    });
+}
+
+/* ADD SAT */
+function addSATQuestion(){
+  const question=document.getElementById('satQuestion').value;
+  const c1=document.getElementById('satChoice1').value;
+  const c2=document.getElementById('satChoice2').value;
+  const c3=document.getElementById('satChoice3').value;
+  const c4=document.getElementById('satChoice4').value;
+  const correct_choice=parseInt(document.getElementById('satCorrectChoice').value)-1;
+  fetch('/add-sat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question,choices:[c1,c2,c3,c4],correct_choice})})
+  .then(r=>r.json()).then(d=>{
+    document.getElementById('addSATQuestionMessage').innerText = d.message || d.error;
+    if(d.message){ 
+      document.getElementById('satQuestion').value='';
+      document.getElementById('satChoice1').value='';
+      document.getElementById('satChoice2').value='';
+      document.getElementById('satChoice3').value='';
+      document.getElementById('satChoice4').value='';
+      document.getElementById('satCorrectChoice').value='';
+      fetchUserSAT();
+    }
+  });
+}
+
+/* MANAGE SAT */
+function fetchUserSAT(){
+  fetch('/user-sat').then(r=>r.json()).then(data=>{
+    userSAT = data;
+    loadManageSAT();
+  });
+}
+
+function loadManageSAT(){
+  const c=document.getElementById('satContainer'); c.innerHTML='';
+  if(userSAT.length===0){ c.innerHTML='<i>No user-added SAT questions yet.</i>'; return; }
+  userSAT.forEach(q=>{
+    const div=document.createElement('div'); div.className='question';
+    div.innerHTML = `<span>${q.question}</span><button class="delete-btn" onclick="deleteSAT('${q.question}')">Delete</button>`;
+    c.appendChild(div);
+  });
+}
+
+function deleteSAT(question){
+  fetch(`/delete-sat/${encodeURIComponent(question)}`, { method:'DELETE' })
+    .then(r=>r.json())
+    .then(d=>{
+      userSAT = userSAT.filter(q=>q.question!==question);
+      loadManageSAT();
+      const msg=document.getElementById('satMessage'); msg.innerText=d.message || "Deleted!";
+      setTimeout(()=>{ msg.innerText=''; },3000);
+    });
+}
+</script>
+</body>
+</html>
